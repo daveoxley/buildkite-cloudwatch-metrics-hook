@@ -1,0 +1,21 @@
+[
+  {
+    "id": "publish-buildkite-metrics",
+    "execute-command": "/conf/publisher",
+    "command-working-directory": "/conf",
+    "trigger-rule":
+    {
+      "match":
+      {
+        "type": "value",
+        "value": "__buildkite_token__",
+        "parameter":
+        {
+          "source": "header",
+          "name": "X-Buildkite-Token"
+        }
+      }
+    }
+  }
+]
+
