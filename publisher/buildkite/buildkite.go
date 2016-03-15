@@ -49,7 +49,7 @@ type Job struct {
 
 // parses job metadata and extracts queue=xyz
 func (j Job) Queue() string {
-	for _, m := range j.Agent.Metadata {
+	for _, m := range j.AgentQueryRules {
 		if match := queuePattern.FindStringSubmatch(m); match != nil {
 			return match[1]
 		}

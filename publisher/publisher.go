@@ -43,16 +43,16 @@ func main() {
         panic(errors.New("No BUILDKITE_ORG_SLUG provided"))
     }
 
-    var res Result = Result{
+    var res = &Result{
         Queues:    map[string]Counts{},
         Pipelines: map[string]Counts{},
     }
 
-    if err := getBuildStats(conf, res, "running"); err != nil {
+    if err := res.getBuildStats(conf, "state=running"); err != nil {
         panic(err)
     }
 
-    if err := getBuildStats(conf, res, "scheduled"); err != nil {
+    if err := res.getBuildStats(conf, "state=scheduled"); err != nil {
         panic(err)
     }
 
@@ -150,7 +150,7 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
     return data
 }
 
-func getBuildStats(conf Config, res Result, filter string) (error) {
+func (res *Result) getBuildStats(conf Config, filter string) (error) {
     log.Printf("Querying buildkite for %s builds for org %s", filter, conf.BuildkiteOrgSlug)
     builds, err := buildkiteBuilds(conf.BuildkiteOrgSlug, conf.BuildkiteApiAccessToken, filter)
     if err != nil {
@@ -175,12 +175,14 @@ func getBuildStats(conf Config, res Result, filter string) (error) {
         }
     }
 
+    log.Printf("%+v\n", *res)
+
     return nil
 }
 
 func buildkiteBuilds(orgSlug, apiKey, filter string) ([]buildkite.Build, error) {
     url := fmt.Sprintf(
-        "https://api.buildkite.com/v2/organizations/%s/builds?state=%s&page=%d",
+        "https://api.buildkite.com/v2/organizations/%s/builds?%s&page=%d",
         orgSlug,
         filter,
         1,
