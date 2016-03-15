@@ -12,5 +12,3 @@ RUN mkdir /conf && \
 RUN mkdir -p /etc/my_init.d
 COPY startup.sh /etc/my_init.d/
 COPY hooks.json /conf/hooks.json
-
-RUN echo "* * * * * root /conf/publisher" > /etc/cron.d/buildkite-metrics-publisher
