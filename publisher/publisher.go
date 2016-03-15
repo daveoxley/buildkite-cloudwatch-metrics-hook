@@ -23,10 +23,6 @@ import (
 // Buildkite > (Queue) > RunningJobsCount
 // Buildkite > (Queue) > ScheduledBuildsCount
 // Buildkite > (Queue) > ScheduledJobsCount
-// Buildkite > (Pipeline) > RunningBuildsCount
-// Buildkite > (Pipeline) > RunningJobsCount
-// Buildkite > (Pipeline) > ScheduledBuildsCount
-// Buildkite > (Pipeline) > ScheduledJobsCount
 
 func main() {
     svc := cloudwatch.New(session.New())
@@ -34,6 +30,7 @@ func main() {
     var conf Config
     conf.BuildkiteApiAccessToken = os.Getenv("BUILDKITE_API_ACCESS_TOKEN")
     conf.BuildkiteOrgSlug = os.Getenv("BUILDKITE_ORG_SLUG")
+    conf.Queue = os.Getenv("QUEUE")
 
     if conf.BuildkiteApiAccessToken == "" {
         panic(errors.New("No BUILDKITE_API_ACCESS_TOKEN provided"))
@@ -43,9 +40,12 @@ func main() {
         panic(errors.New("No BUILDKITE_ORG_SLUG provided"))
     }
 
+    if conf.Queue == "" {
+        panic(errors.New("No QUEUE provided"))
+    }
+
     var res = &Result{
         Queues:    map[string]Counts{},
-        Pipelines: map[string]Counts{},
     }
 
     if err := res.getBuildStats(conf, "state=running"); err != nil {
@@ -68,7 +68,7 @@ func main() {
 }
 
 type Config struct {
-    BuildkiteOrgSlug, BuildkiteApiAccessToken string
+    BuildkiteOrgSlug, BuildkiteApiAccessToken, Queue string
 }
 
 type Counts struct {
@@ -126,7 +126,7 @@ func (c Counts) asMetrics(dimensions []*cloudwatch.Dimension) []*cloudwatch.Metr
 
 type Result struct {
     Counts
-    Queues, Pipelines map[string]Counts
+    Queues map[string]Counts
 }
 
 func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
@@ -136,14 +136,6 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
     for name, _ := range r.Queues {
         data = append(data, r.Counts.asMetrics([]*cloudwatch.Dimension{
             {Name: aws.String("Queue"), Value: aws.String(name)},
-        })...)
-    }
-
-    // write pipeline metrics, include project dimension for backwards compat
-    for name, _ := range r.Pipelines {
-        data = append(data, r.Counts.asMetrics([]*cloudwatch.Dimension{
-            {Name: aws.String("Project"), Value: aws.String(name)},
-            {Name: aws.String("Pipeline"), Value: aws.String(name)},
         })...)
     }
 
@@ -160,19 +152,24 @@ func (res *Result) getBuildStats(conf Config, filter string) (error) {
     log.Printf("Aggregating results from %d builds", len(builds))
     for _, build := range builds {
         res.Counts = res.Counts.addBuild(build)
-        res.Pipelines[build.Pipeline.Name] = res.Pipelines[build.Pipeline.Name].addBuild(build)
 
         var buildQueues = map[string]int{}
         for _, job := range build.Jobs {
             res.Counts = res.Counts.addJob(job)
-            res.Pipelines[build.Pipeline.Name] = res.Pipelines[build.Pipeline.Name].addJob(job)
-            res.Queues[job.Queue()] = res.Queues[job.Queue()].addJob(job)
-            buildQueues[job.Queue()]++
+            queue := job.Queue()
+            if queue == "default" || queue == conf.Queue {
+                res.Queues[queue] = res.Queues[queue].addJob(job)
+                buildQueues[queue]++
+            }
         }
 
         for queue := range buildQueues {
             res.Queues[queue] = res.Queues[queue].addBuild(build)
         }
+
+        // Initialise both queues if they don't have any jobs
+        res.Queues["default"] = res.Queues["default"]
+        res.Queues[conf.Queue] = res.Queues[conf.Queue]
     }
 
     log.Printf("%+v\n", *res)
