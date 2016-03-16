@@ -133,8 +133,8 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
     data := []*cloudwatch.MetricDatum{}
     data = append(data, r.Counts.asMetrics(nil)...)
 
-    for name, _ := range r.Queues {
-        data = append(data, r.Counts.asMetrics([]*cloudwatch.Dimension{
+    for name, c := range r.Queues {
+        data = append(data, c.asMetrics([]*cloudwatch.Dimension{
             {Name: aws.String("Queue"), Value: aws.String(name)},
         })...)
     }
