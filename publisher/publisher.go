@@ -48,11 +48,11 @@ func main() {
         Queues:    map[string]Counts{},
     }
 
-    if err := res.getBuildStats(conf, "state=running"); err != nil {
+    if err := res.getBuildStats(conf, "running"); err != nil {
         panic(err)
     }
 
-    if err := res.getBuildStats(conf, "state=scheduled"); err != nil {
+    if err := res.getBuildStats(conf, "scheduled"); err != nil {
         panic(err)
     }
 
@@ -142,9 +142,9 @@ func (r Result) extractMetricData() []*cloudwatch.MetricDatum {
     return data
 }
 
-func (res *Result) getBuildStats(conf Config, filter string) (error) {
-    log.Printf("Querying buildkite for %s builds for org %s", filter, conf.BuildkiteOrgSlug)
-    builds, err := buildkiteBuilds(conf.BuildkiteOrgSlug, conf.BuildkiteApiAccessToken, filter)
+func (res *Result) getBuildStats(conf Config, stateFilter string) (error) {
+    log.Printf("Querying buildkite for %s builds for org %s", stateFilter, conf.BuildkiteOrgSlug)
+    builds, err := buildkiteBuilds(conf.BuildkiteOrgSlug, conf.BuildkiteApiAccessToken, stateFilter)
     if err != nil {
         return err
     }
@@ -177,11 +177,11 @@ func (res *Result) getBuildStats(conf Config, filter string) (error) {
     return nil
 }
 
-func buildkiteBuilds(orgSlug, apiKey, filter string) ([]buildkite.Build, error) {
+func buildkiteBuilds(orgSlug, apiKey, stateFilter string) ([]buildkite.Build, error) {
     url := fmt.Sprintf(
-        "https://api.buildkite.com/v2/organizations/%s/builds?%s&page=%d",
+        "https://api.buildkite.com/v2/organizations/%s/builds?state=%s&page=%d&per_page=100",
         orgSlug,
-        filter,
+        stateFilter,
         1,
     )
 
