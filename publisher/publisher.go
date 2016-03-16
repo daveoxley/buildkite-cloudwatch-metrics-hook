@@ -166,11 +166,11 @@ func (res *Result) getBuildStats(conf Config, filter string) (error) {
         for queue := range buildQueues {
             res.Queues[queue] = res.Queues[queue].addBuild(build)
         }
-
-        // Initialise both queues if they don't have any jobs
-        res.Queues["default"] = res.Queues["default"]
-        res.Queues[conf.Queue] = res.Queues[conf.Queue]
     }
+
+    // Initialise both queues if they don't have any jobs
+    res.Queues["default"] = res.Queues["default"]
+    res.Queues[conf.Queue] = res.Queues[conf.Queue]
 
     log.Printf("%+v\n", *res)
 
